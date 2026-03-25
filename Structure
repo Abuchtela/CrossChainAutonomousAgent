@@ -1,0 +1,23 @@
+CrossChainAutonomousAgent/
+│
+├── public/
+│   └── index.html
+│
+├── src/
+│   ├── api/
+│   │   ├── crossChainAPI.js      # Multi-chain API connector
+│   │   └── ledgerAPI.js          # Ledger handling
+│   │
+│   ├── components/
+│   │   ├── Dashboard.jsx         # Main dashboard
+│   │   ├── PortfolioPage.jsx     # Hidden ledger/portfolio
+│   │   └── ProfitChart.jsx       # Charts for profit & vault balances
+│   │
+│   ├── App.jsx
+│   ├── index.js
+│   └── styles.css
+│
+├── ledger.csv                    # Hidden ledger CSV file
+├── package.json
+├── package-lock.json
+└── README.md
