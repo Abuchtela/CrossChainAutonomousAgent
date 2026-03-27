@@ -74,6 +74,9 @@ web_modules/
 .cache
 .parcel-cache
 
+# React / CRA production build
+/build
+
 # Next.js build output
 .next
 out

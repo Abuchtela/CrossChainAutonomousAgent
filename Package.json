@@ -9,10 +9,22 @@
     "ethers": "^6.9.0",
     "recharts": "^2.7.2",
     "axios": "^1.6.0",
-    "@stacks/transactions": "^2.2.0"
+    "@stacks/transactions": "^7.4.0"
   },
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build"
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
   }
 }
