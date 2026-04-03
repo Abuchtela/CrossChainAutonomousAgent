@@ -1,0 +1,8 @@
+date,chain,type,amount,token,usd
+2024-01-01,Base,Vault Yield,12.4,ETH,28.1
+2024-01-02,Optimism,Trading Profit,0.05,ETH,113.2
+2024-01-03,Stacks,Vault Yield,45.0,STX,54.0
+2024-01-04,Base,Trading Profit,0.02,ETH,45.3
+2024-01-05,Optimism,Vault Yield,0.03,ETH,67.9
+2024-01-06,Stacks,Trading Profit,30.0,STX,36.0
+2024-01-07,Base,Vault Yield,15.1,ETH,34.2

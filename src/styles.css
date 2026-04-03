@@ -1,0 +1,193 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background-color: #0d1117;
+  color: #c9d1d9;
+}
+
+.app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Nav */
+.nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 24px;
+  background: #161b22;
+  border-bottom: 1px solid #30363d;
+}
+
+.nav-logo {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #58a6ff;
+}
+
+.nav-links {
+  display: flex;
+  gap: 8px;
+}
+
+.nav-btn {
+  background: transparent;
+  border: 1px solid #30363d;
+  color: #c9d1d9;
+  padding: 6px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.2s;
+}
+
+.nav-btn:hover {
+  border-color: #58a6ff;
+  color: #58a6ff;
+}
+
+.nav-btn.active {
+  background: #1f6feb;
+  border-color: #1f6feb;
+  color: #fff;
+}
+
+/* Main */
+.main-content {
+  flex: 1;
+  padding: 24px;
+}
+
+/* Cards */
+.card {
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.card h2 {
+  font-size: 1rem;
+  color: #8b949e;
+  margin-bottom: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.card .value {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: #58a6ff;
+}
+
+.card .sub {
+  font-size: 0.85rem;
+  color: #8b949e;
+  margin-top: 4px;
+}
+
+/* Grid */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+/* Chain badge */
+.chain-badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-right: 6px;
+}
+
+.chain-base { background: #1e3a5f; color: #79c0ff; }
+.chain-optimism { background: #3d1f1f; color: #ff7b72; }
+.chain-stacks { background: #1f2d1f; color: #56d364; }
+
+/* Status indicator */
+.status-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 6px;
+}
+
+.status-dot.online { background: #56d364; }
+.status-dot.offline { background: #f85149; }
+.status-dot.loading { background: #e3b341; }
+
+/* Table */
+.ledger-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.ledger-table th {
+  text-align: left;
+  padding: 8px 12px;
+  border-bottom: 1px solid #30363d;
+  color: #8b949e;
+  font-weight: 600;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+}
+
+.ledger-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #21262d;
+}
+
+.ledger-table tr:last-child td {
+  border-bottom: none;
+}
+
+.ledger-table .positive { color: #56d364; }
+.ledger-table .negative { color: #f85149; }
+
+/* Section title */
+.section-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #c9d1d9;
+  margin-bottom: 16px;
+}
+
+/* Agent log */
+.agent-log {
+  font-family: 'Courier New', monospace;
+  font-size: 0.8rem;
+  background: #0d1117;
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  padding: 12px;
+  max-height: 180px;
+  overflow-y: auto;
+  color: #56d364;
+}
+
+.agent-log .log-line {
+  margin-bottom: 4px;
+}
+
+.agent-log .log-time {
+  color: #8b949e;
+  margin-right: 8px;
+}
+
+/* Profit up/down */
+.profit-up { color: #56d364; }
+.profit-down { color: #f85149; }
