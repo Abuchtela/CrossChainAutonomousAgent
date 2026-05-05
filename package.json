@@ -3,17 +3,20 @@
   "version": "1.0.0",
   "private": true,
   "dependencies": {
+    "@stacks/transactions": "^7.4.0",
+    "axios": "^1.6.0",
+    "ethers": "^6.9.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-scripts": "5.0.1",
-    "ethers": "^6.9.0",
-    "recharts": "^2.7.2",
-    "axios": "^1.6.0",
-    "@stacks/transactions": "^7.4.0"
+    "recharts": "^2.7.2"
   },
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build"
+  },
+  "devDependencies": {
+    "ajv": "^8.18.0"
   },
   "browserslist": {
     "production": [
