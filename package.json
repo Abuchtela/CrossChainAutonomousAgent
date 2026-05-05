@@ -6,8 +6,8 @@
     "@stacks/transactions": "^7.3.1",
     "axios": "^1.6.0",
     "ethers": "^6.9.0",
-    "react": "^18.2.0",
-    "react-dom": "^19.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^18.2.0",
     "react-scripts": "5.0.1",
     "recharts": "^2.7.2"
   },
