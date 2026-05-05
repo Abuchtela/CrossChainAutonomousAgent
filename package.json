@@ -4,7 +4,7 @@
   "private": true,
   "dependencies": {
     "@stacks/transactions": "^7.3.1",
-    "axios": "^1.6.0",
+    "axios": "^1.15.2",
     "ethers": "^6.9.0",
     "react": "^19.0.0",
     "react-dom": "^18.2.0",
