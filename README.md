@@ -10,26 +10,29 @@ Autonomous multi-chain agent dashboard for **Base**, **Optimism**, and **Stacks*
 - 📁 **CSV export** — download your full ledger history
 - 🌙 **Dark theme** — sleek crypto-native UI
 
-## Prerequisites
-
-- [Node.js](https://nodejs.org/) v18 or later (v24 recommended)
-- npm v9 or later (bundled with Node.js)
-
 ## Getting Started
 
-### 1. Clone the repository
-
-```bash
-git clone https://github.com/Abuchtela/CrossChainAutonomousAgent.git
-cd CrossChainAutonomousAgent
-```
-
-### 2. Install dependencies
+### 1. Install dependencies
 
 ```bash
 npm install
 ```
 
+### 2. Configure environment
+
+```bash
+cp .env.example .env
+# Edit .env with your preferred RPC endpoints (optional — public defaults are included)
+```
+
+### 3. Start the development server
+
+```bash
+npm start
+# Opens http://localhost:3000
+```
+
+### 4. Build for production
 ### 3. Configure environment
 
 ```bash
@@ -87,7 +90,7 @@ public/
 |-------|---------|
 | UI | React 18 |
 | EVM chains | ethers.js 6 |
-| Stacks | @stacks/transactions |
+| Stacks | @stacks/transactions 2 |
 | Charts | Recharts 2 |
 | HTTP | axios |
 | Build | react-scripts (CRA) |
