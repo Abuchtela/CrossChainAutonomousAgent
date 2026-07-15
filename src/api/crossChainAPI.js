@@ -87,7 +87,7 @@ async function postRpc(chain, method, params = []) {
   return data.result;
 }
 
-function isEvmAddress(value) {
+export function isEvmAddress(value) {
   return EVM_ADDRESS_PATTERN.test(String(value || '').trim());
 }
 

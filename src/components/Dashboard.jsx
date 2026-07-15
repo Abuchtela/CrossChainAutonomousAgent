@@ -4,6 +4,7 @@ import {
   connectMiniPay,
   fetchContractDeploymentStatus,
   getInjectedProvider,
+  isEvmAddress,
   CHAINS as CHAIN_CONFIG,
 } from '../api/crossChainAPI';
 import { getTodayIncome, getTotalPnL, getCeloImpactMetrics, addEntry } from '../api/ledgerAPI';
@@ -11,7 +12,28 @@ import ProfitChart from './ProfitChart';
 import PortfolioPage from './PortfolioPage';
 
 const CHAIN_KEYS = Object.keys(CHAIN_CONFIG);
-const CELO_IMPACT_CONTRACT_ADDRESS = (process.env.REACT_APP_CELO_IMPACT_CONTRACT_ADDRESS || '').trim();
+const CELO_CONTRACT_STORAGE_KEY = 'celo_impact_contract_address';
+const DEFAULT_CELO_IMPACT_CONTRACT_ADDRESS = (process.env.REACT_APP_CELO_IMPACT_CONTRACT_ADDRESS || '').trim();
+const CELO_CONTRACT_REQUIREMENTS = [
+  'Deploy the impact contract to Celo mainnet before enabling on-chain verification.',
+  'Use a valid 0x-prefixed EVM contract address.',
+  'Keep the configured Celo RPC endpoint pointed at the network that hosts the contract.',
+  'Ensure bytecode is live at the saved address so the dashboard can verify deployment.',
+];
+
+function loadConfiguredCeloContractAddress() {
+  if (typeof window === 'undefined') {
+    return DEFAULT_CELO_IMPACT_CONTRACT_ADDRESS;
+  }
+
+  try {
+    return (
+      localStorage.getItem(CELO_CONTRACT_STORAGE_KEY)?.trim() || DEFAULT_CELO_IMPACT_CONTRACT_ADDRESS
+    );
+  } catch {
+    return DEFAULT_CELO_IMPACT_CONTRACT_ADDRESS;
+  }
+}
 
 const CHAIN_COLORS = {
   base: '#0052ff',
@@ -38,11 +60,15 @@ function getCeloContractNote(celoContractStatus) {
     return `Verified Celo contract: ${celoContractStatus.address}`;
   }
 
+  if (celoContractStatus.error === 'Configured contract address is invalid.') {
+    return 'Enter a valid Celo contract address to verify deployment on-chain.';
+  }
+
   if (celoContractStatus.configured) {
     return `No bytecode was found at ${celoContractStatus.address}. Deploy the Celo impact contract there to verify issued metrics on-chain.`;
   }
 
-  return 'Set REACT_APP_CELO_IMPACT_CONTRACT_ADDRESS after deploying the Celo impact contract so the dashboard can verify issued metrics on-chain.';
+  return 'Save a deployed contract address below, or set REACT_APP_CELO_IMPACT_CONTRACT_ADDRESS, so the dashboard can verify issued metrics on-chain.';
 }
 
 const ChainCard = ({ chain, data, loading }) => (
@@ -73,10 +99,14 @@ const Dashboard = () => {
   const [todayIncome, setTodayIncome] = useState(0);
   const [totalPnL, setTotalPnL] = useState(0);
   const [celoImpactMetrics, setCeloImpactMetrics] = useState(() => getCeloImpactMetrics());
+  const [configuredCeloContractAddress, setConfiguredCeloContractAddress] = useState(
+    loadConfiguredCeloContractAddress
+  );
+  const [contractAddressInput, setContractAddressInput] = useState(loadConfiguredCeloContractAddress);
   const [celoContractStatus, setCeloContractStatus] = useState({
-    configured: Boolean(CELO_IMPACT_CONTRACT_ADDRESS),
+    configured: Boolean(loadConfiguredCeloContractAddress()),
     deployed: false,
-    address: CELO_IMPACT_CONTRACT_ADDRESS,
+    address: loadConfiguredCeloContractAddress(),
   });
   const [checkingCeloContract, setCheckingCeloContract] = useState(false);
   const [newEntry, setNewEntry] = useState({
@@ -95,8 +125,9 @@ const Dashboard = () => {
     setCeloImpactMetrics(getCeloImpactMetrics());
   }, []);
 
-  const refreshCeloContractStatus = useCallback(async () => {
-    if (!CELO_IMPACT_CONTRACT_ADDRESS) {
+  const refreshCeloContractStatus = useCallback(async (nextAddress = configuredCeloContractAddress) => {
+    const address = String(nextAddress || '').trim();
+    if (!address) {
       setCeloContractStatus({
         configured: false,
         deployed: false,
@@ -107,19 +138,19 @@ const Dashboard = () => {
 
     setCheckingCeloContract(true);
     try {
-      const status = await fetchContractDeploymentStatus('celo', CELO_IMPACT_CONTRACT_ADDRESS);
+      const status = await fetchContractDeploymentStatus('celo', address);
       setCeloContractStatus(status);
     } catch (error) {
       setCeloContractStatus({
         configured: true,
         deployed: false,
-        address: CELO_IMPACT_CONTRACT_ADDRESS,
+        address,
         error: error.message,
       });
     } finally {
       setCheckingCeloContract(false);
     }
-  }, []);
+  }, [configuredCeloContractAddress]);
 
   useEffect(() => {
     refreshStats();
@@ -204,6 +235,44 @@ const Dashboard = () => {
     refreshStats();
     setNewEntry({ type: 'income', amount: '', description: '', chain: 'base' });
     showNotification('Entry added to ledger!');
+  };
+
+  const handleSaveContractAddress = async () => {
+    const nextAddress = contractAddressInput.trim();
+
+    if (nextAddress && !isEvmAddress(nextAddress)) {
+      setCeloContractStatus({
+        configured: true,
+        deployed: false,
+        address: nextAddress,
+        error: 'Configured contract address is invalid.',
+      });
+      showNotification('Enter a valid 0x contract address.');
+      return;
+    }
+
+    try {
+      if (nextAddress) {
+        localStorage.setItem(CELO_CONTRACT_STORAGE_KEY, nextAddress);
+      } else {
+        localStorage.removeItem(CELO_CONTRACT_STORAGE_KEY);
+      }
+    } catch {
+      showNotification('Failed to save the contract address locally.');
+      return;
+    }
+
+    const resolvedAddress = nextAddress || DEFAULT_CELO_IMPACT_CONTRACT_ADDRESS;
+    setConfiguredCeloContractAddress(resolvedAddress);
+    setContractAddressInput(resolvedAddress);
+    await refreshCeloContractStatus(resolvedAddress);
+    showNotification(
+      nextAddress
+        ? 'Celo contract address saved.'
+        : resolvedAddress
+          ? 'Local override removed. Using the default contract address.'
+          : 'Celo contract address cleared.'
+    );
   };
 
   return (
@@ -297,6 +366,40 @@ const Dashboard = () => {
               {getCeloContractNote(celoContractStatus)}
             </p>
             {celoContractStatus.error && <p className="error-text">{celoContractStatus.error}</p>}
+
+            <div className="contract-settings">
+              <div className="form-group">
+                <label>Celo Impact Contract Address</label>
+                <input
+                  type="text"
+                  className="input"
+                  placeholder="0x..."
+                  value={contractAddressInput}
+                  onChange={(e) => setContractAddressInput(e.target.value)}
+                />
+              </div>
+              <div className="button-row">
+                <button
+                  className="btn btn-primary"
+                  onClick={handleSaveContractAddress}
+                  disabled={checkingCeloContract}
+                >
+                  {checkingCeloContract ? 'Checking…' : 'Save Contract Address'}
+                </button>
+              </div>
+              <p className="muted-text contract-config-note">
+                Saved in this browser. Leave the field blank and save to clear the local override.
+              </p>
+            </div>
+
+            <div className="contract-requirements">
+              <span className="stat-label">Deployment Requirements</span>
+              <ul className="requirements-list">
+                {CELO_CONTRACT_REQUIREMENTS.map((requirement) => (
+                  <li key={requirement}>{requirement}</li>
+                ))}
+              </ul>
+            </div>
           </section>
 
           <section className="card">

@@ -250,6 +250,27 @@ section > h2 {
   margin-top: 1rem;
 }
 
+.contract-settings,
+.contract-requirements {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.contract-config-note {
+  margin-top: 0.25rem;
+}
+
+.requirements-list {
+  margin: 0.5rem 0 0;
+  padding-left: 1.2rem;
+  color: var(--muted);
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  list-style: disc;
+}
+
 .chain-name {
   font-size: 0.8rem;
   font-weight: 600;
