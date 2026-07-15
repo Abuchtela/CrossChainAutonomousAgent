@@ -59,7 +59,14 @@ function generateEntryId(timestamp, index) {
     return globalThis.crypto.randomUUID();
   }
 
-  return `${Date.parse(timestamp) || Date.now()}-${index}-${Math.random().toString(36).slice(2, 8)}`;
+  if (typeof globalThis !== 'undefined' && typeof globalThis.crypto?.getRandomValues === 'function') {
+    const randomBytes = new Uint8Array(8);
+    globalThis.crypto.getRandomValues(randomBytes);
+    const randomSuffix = Array.from(randomBytes, (value) => value.toString(16).padStart(2, '0')).join('');
+    return `${Date.parse(timestamp) || Date.now()}-${index}-${randomSuffix}`;
+  }
+
+  return `${Date.parse(timestamp) || Date.now()}-${index}`;
 }
 
 function normaliseEntry(entry, index = 0) {
