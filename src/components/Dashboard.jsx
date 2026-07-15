@@ -175,7 +175,7 @@ const Dashboard = () => {
     try {
       const { account, provider } = await connectMiniPay();
       if (!account) {
-        throw new Error('No wallet account available. Please connect your wallet and try again.');
+        throw new Error('Wallet connection succeeded but no account was returned. Please unlock your wallet and try again.');
       }
 
       setMiniPayReady(true);

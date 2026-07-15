@@ -70,12 +70,7 @@ function generateEntryId(timestamp, index) {
     return `${Date.parse(timestamp) || Date.now()}-${index}-${randomSuffix}`;
   }
 
-  const perfSuffix =
-    typeof globalThis?.performance?.now === 'function'
-      ? Math.floor(globalThis.performance.now() * 1000)
-      : Date.now();
-
-  return `${Date.parse(timestamp) || Date.now()}-${index}-${perfSuffix}-${entryIdCounter++}`;
+  return `${Date.parse(timestamp) || Date.now()}-${index}-${entryIdCounter++}`;
 }
 
 function normaliseEntry(entry, index = 0) {
@@ -91,6 +86,16 @@ function normaliseEntry(entry, index = 0) {
     amount: Number.isFinite(amount) ? amount : 0,
     description: entry.description || entry.token || '',
   };
+}
+
+function isNormalisedEntry(entry) {
+  return Boolean(
+    entry?.id &&
+      typeof entry?.timestamp === 'string' &&
+      typeof entry?.chain === 'string' &&
+      typeof entry?.type === 'string' &&
+      typeof entry?.amount === 'number'
+  );
 }
 
 export function loadLedger() {
@@ -113,7 +118,10 @@ export function loadLedger() {
 }
 
 export function saveLedger(entries) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(entries.map(normaliseEntry)));
+  localStorage.setItem(
+    STORAGE_KEY,
+    JSON.stringify(entries.map((entry, index) => (isNormalisedEntry(entry) ? entry : normaliseEntry(entry, index))))
+  );
 }
 
 export function getEntries() {

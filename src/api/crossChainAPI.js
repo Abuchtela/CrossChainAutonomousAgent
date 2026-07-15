@@ -12,6 +12,7 @@ const CELO_MAINNET_PARAMS = {
 
 const UNRECOGNIZED_CHAIN_ERROR = 4902;
 const EVM_ADDRESS_PATTERN = /^0x[a-fA-F0-9]{40}$/;
+const RPC_METHOD_PATTERN = /^(eth|net|web3)_[A-Za-z0-9]+$/;
 
 const CHAINS = {
   base: {
@@ -59,6 +60,10 @@ function parseHexBalance(value, decimals) {
 }
 
 async function postRpc(chain, method, params = []) {
+  if (!RPC_METHOD_PATTERN.test(method)) {
+    throw new Error(`Unsupported RPC method: ${method}`);
+  }
+
   const response = await fetch(chain.rpcUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
