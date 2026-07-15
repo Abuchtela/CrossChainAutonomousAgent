@@ -1,14 +1,20 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { getAllBalances } from '../api/crossChainAPI';
+import {
+  getAllBalances,
+  connectMiniPay,
+  getInjectedProvider,
+  CHAINS as CHAIN_CONFIG,
+} from '../api/crossChainAPI';
 import { getTodayIncome, getTotalPnL, addEntry } from '../api/ledgerAPI';
 import ProfitChart from './ProfitChart';
 import PortfolioPage from './PortfolioPage';
 
-const CHAINS = ['base', 'optimism', 'stacks'];
+const CHAIN_KEYS = Object.keys(CHAIN_CONFIG);
 
 const CHAIN_COLORS = {
   base: '#0052ff',
   optimism: '#ff0420',
+  celo: '#35d07f',
   stacks: '#5546ff',
 };
 
@@ -35,6 +41,7 @@ const Dashboard = () => {
   const [stacksAddress, setStacksAddress] = useState('');
   const [balances, setBalances] = useState({});
   const [loading, setLoading] = useState(false);
+  const [connectingWallet, setConnectingWallet] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [todayIncome, setTodayIncome] = useState(0);
   const [totalPnL, setTotalPnL] = useState(0);
@@ -45,6 +52,8 @@ const Dashboard = () => {
     chain: 'base',
   });
   const [notification, setNotification] = useState('');
+  const [walletProviderLabel, setWalletProviderLabel] = useState('');
+  const [miniPayReady, setMiniPayReady] = useState(false);
 
   const refreshStats = useCallback(() => {
     setTodayIncome(getTodayIncome());
@@ -53,6 +62,11 @@ const Dashboard = () => {
 
   useEffect(() => {
     refreshStats();
+    const provider = getInjectedProvider({ preferMiniPay: true });
+    if (provider) {
+      setMiniPayReady(true);
+      setWalletProviderLabel(provider.isMiniPay ? 'MiniPay detected' : 'Injected wallet detected');
+    }
     try {
       const stored = localStorage.getItem('agent_addresses');
       if (stored) {
@@ -92,6 +106,30 @@ const Dashboard = () => {
     );
     fetchBalances(evmAddress, stacksAddress);
     showNotification('Addresses saved!');
+  };
+
+  const handleConnectMiniPay = async () => {
+    setConnectingWallet(true);
+    try {
+      const { account, provider } = await connectMiniPay();
+      if (!account) {
+        throw new Error('No wallet account was returned.');
+      }
+
+      setMiniPayReady(true);
+      setWalletProviderLabel(provider?.isMiniPay ? 'Connected with MiniPay' : 'Connected with wallet');
+      setEvmAddress(account);
+      localStorage.setItem(
+        'agent_addresses',
+        JSON.stringify({ evm: account, stacks: stacksAddress })
+      );
+      await fetchBalances(account, stacksAddress);
+      showNotification(provider?.isMiniPay ? 'MiniPay connected on Celo.' : 'Wallet connected on Celo.');
+    } catch (error) {
+      showNotification(`Wallet connection failed: ${error.message}`);
+    } finally {
+      setConnectingWallet(false);
+    }
   };
 
   const handleAddEntry = (e) => {
@@ -150,9 +188,13 @@ const Dashboard = () => {
 
           <section className="card">
             <h2>Wallet Addresses</h2>
+            <p className="muted-text" style={{ marginBottom: '1rem' }}>
+              Use your EVM wallet for Base, Optimism, and Celo. Connect MiniPay to auto-fill your
+              Celo-ready address.
+            </p>
             <div className="address-form">
               <div className="form-group">
-                <label>EVM Address (Base &amp; Optimism)</label>
+                <label>EVM Address (Base, Optimism &amp; Celo)</label>
                 <input
                   type="text"
                   className="input"
@@ -172,6 +214,13 @@ const Dashboard = () => {
                 />
               </div>
               <div className="button-row">
+                <button
+                  className="btn btn-secondary"
+                  onClick={handleConnectMiniPay}
+                  disabled={connectingWallet}
+                >
+                  {connectingWallet ? 'Connecting…' : 'Connect MiniPay'}
+                </button>
                 <button className="btn btn-primary" onClick={saveAddresses}>
                   Save &amp; Refresh
                 </button>
@@ -183,13 +232,18 @@ const Dashboard = () => {
                   {loading ? 'Loading…' : '↻ Refresh Balances'}
                 </button>
               </div>
+              <p className="muted-text">
+                {miniPayReady
+                  ? `${walletProviderLabel}. Celo balances will be fetched with the same EVM address.`
+                  : 'MiniPay not detected. You can still paste any Celo-compatible EVM address manually.'}
+              </p>
             </div>
           </section>
 
           <section>
             <h2>Chain Balances</h2>
             <div className="chains-grid">
-              {CHAINS.map((chain) => (
+              {CHAIN_KEYS.map((chain) => (
                 <ChainCard
                   key={chain}
                   chain={chain}
@@ -228,9 +282,9 @@ const Dashboard = () => {
                     value={newEntry.chain}
                     onChange={(e) => setNewEntry({ ...newEntry, chain: e.target.value })}
                   >
-                    {CHAINS.map((c) => (
+                    {CHAIN_KEYS.map((c) => (
                       <option key={c} value={c}>
-                        {c.charAt(0).toUpperCase() + c.slice(1)}
+                        {CHAIN_CONFIG[c].name}
                       </option>
                     ))}
                   </select>
