@@ -20,6 +20,31 @@ const CHAIN_COLORS = {
   stacks: '#5546ff',
 };
 
+function getCeloContractStatusLabel(checkingCeloContract, celoContractStatus) {
+  if (checkingCeloContract) return 'Checking deployment…';
+  if (celoContractStatus.deployed) return 'Contract deployed';
+  if (celoContractStatus.configured) return 'Contract missing';
+  return 'Contract not configured';
+}
+
+function getCeloContractStatusClass(celoContractStatus) {
+  if (celoContractStatus.deployed) return 'status-pill-success';
+  if (celoContractStatus.configured) return 'status-pill-warning';
+  return 'status-pill-muted';
+}
+
+function getCeloContractNote(celoContractStatus) {
+  if (celoContractStatus.deployed) {
+    return `Verified Celo contract: ${celoContractStatus.address}`;
+  }
+
+  if (celoContractStatus.configured) {
+    return `No bytecode was found at ${celoContractStatus.address}. Deploy the Celo impact contract there to verify issued metrics on-chain.`;
+  }
+
+  return 'Set REACT_APP_CELO_IMPACT_CONTRACT_ADDRESS after deploying the Celo impact contract so the dashboard can verify issued metrics on-chain.';
+}
+
 const ChainCard = ({ chain, data, loading }) => (
   <div className="chain-card" style={{ borderLeft: `4px solid ${CHAIN_COLORS[chain]}` }}>
     <h3 className="chain-name">{chain.charAt(0).toUpperCase() + chain.slice(1)}</h3>
@@ -242,21 +267,9 @@ const Dashboard = () => {
                 </p>
               </div>
               <span
-                className={`status-pill ${
-                  celoContractStatus.deployed
-                    ? 'status-pill-success'
-                    : celoContractStatus.configured
-                      ? 'status-pill-warning'
-                      : 'status-pill-muted'
-                }`}
+                className={`status-pill ${getCeloContractStatusClass(celoContractStatus)}`}
               >
-                {checkingCeloContract
-                  ? 'Checking deployment…'
-                  : celoContractStatus.deployed
-                    ? 'Contract deployed'
-                    : celoContractStatus.configured
-                      ? 'Contract missing'
-                      : 'Contract not configured'}
+                {getCeloContractStatusLabel(checkingCeloContract, celoContractStatus)}
               </span>
             </div>
 
@@ -280,11 +293,7 @@ const Dashboard = () => {
             </div>
 
             <p className="muted-text impact-note">
-              {celoContractStatus.deployed
-                ? `Verified Celo contract: ${celoContractStatus.address}`
-                : celoContractStatus.configured
-                  ? `No bytecode was found at ${celoContractStatus.address}. Deploy the Celo impact contract there to verify issued metrics on-chain.`
-                  : 'Set REACT_APP_CELO_IMPACT_CONTRACT_ADDRESS after deploying the Celo impact contract so the dashboard can verify issued metrics on-chain.'}
+              {getCeloContractNote(celoContractStatus)}
             </p>
             {celoContractStatus.error && <p className="error-text">{celoContractStatus.error}</p>}
           </section>

@@ -69,7 +69,12 @@ function generateEntryId(timestamp, index) {
     return `${Date.parse(timestamp) || Date.now()}-${index}-${randomSuffix}`;
   }
 
-  return `${Date.parse(timestamp) || Date.now()}-${index}-${Math.random().toString(16).slice(2, 10)}`;
+  const perfSuffix =
+    typeof globalThis?.performance?.now === 'function'
+      ? Math.floor(globalThis.performance.now() * 1000)
+      : Date.now();
+
+  return `${Date.parse(timestamp) || Date.now()}-${index}-${perfSuffix}`;
 }
 
 function normaliseEntry(entry, index = 0) {
