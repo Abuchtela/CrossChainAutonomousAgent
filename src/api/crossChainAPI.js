@@ -86,6 +86,10 @@ function isEvmAddress(value) {
   return EVM_ADDRESS_PATTERN.test(String(value || '').trim());
 }
 
+function getProviderErrorCode(error) {
+  return error?.code ?? error?.data?.originalError?.code ?? null;
+}
+
 async function fetchEVMBalance(chain, address) {
   const result = await postRpc(chain, 'eth_getBalance', [address, 'latest']);
   return parseHexBalance(result, 18);
@@ -229,7 +233,7 @@ export async function switchToCeloMainnet(provider = getInjectedProvider({ prefe
       params: [{ chainId: CELO_MAINNET_PARAMS.chainId }],
     });
   } catch (error) {
-    const errorCode = error?.code ?? error?.data?.originalError?.code;
+    const errorCode = getProviderErrorCode(error);
     if (errorCode === UNRECOGNIZED_CHAIN_ERROR) {
       await provider.request({
         method: 'wallet_addEthereumChain',

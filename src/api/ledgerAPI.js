@@ -57,7 +57,7 @@ function parseEntryAmount(entry) {
 }
 
 function generateEntryId(timestamp, index) {
-  const cryptoApi = typeof globalThis !== 'undefined' ? globalThis.crypto : undefined;
+  const cryptoApi = globalThis.crypto;
 
   if (typeof cryptoApi?.randomUUID === 'function') {
     return cryptoApi.randomUUID();
@@ -161,7 +161,7 @@ export function getCeloImpactMetrics(entries = loadLedger()) {
     .sort((a, b) => a.timestamp.localeCompare(b.timestamp));
 
   const totalIssued = issuedEntries.reduce((sum, entry) => sum + entry.amount, 0);
-  const lastIssuedAt = issuedEntries.length > 0 ? issuedEntries[issuedEntries.length - 1].timestamp : null;
+  const lastIssuedAt = issuedEntries.at(-1)?.timestamp || null;
 
   return {
     totalIssued: Number(totalIssued.toFixed(4)),
