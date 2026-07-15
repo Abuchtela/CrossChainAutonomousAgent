@@ -43,7 +43,18 @@ const CHAINS = {
 
 function parseHexBalance(value, decimals) {
   if (!value) return 0;
-  return Number(BigInt(value)) / 10 ** decimals;
+
+  const balance = BigInt(value);
+  const divisor = 10n ** BigInt(decimals);
+  const whole = balance / divisor;
+  const fraction = balance % divisor;
+  const fractionString = fraction
+    .toString()
+    .padStart(decimals, '0')
+    .replace(/0+$/, '')
+    .slice(0, 6);
+
+  return Number(fractionString ? `${whole.toString()}.${fractionString}` : whole.toString());
 }
 
 async function postRpc(chain, method, params = []) {
@@ -181,7 +192,8 @@ export async function switchToCeloMainnet(provider = getInjectedProvider({ prefe
       params: [{ chainId: CELO_MAINNET_PARAMS.chainId }],
     });
   } catch (error) {
-    if (error?.code === UNRECOGNIZED_CHAIN_ERROR) {
+    const errorCode = error?.code ?? error?.data?.originalError?.code;
+    if (errorCode === UNRECOGNIZED_CHAIN_ERROR) {
       await provider.request({
         method: 'wallet_addEthereumChain',
         params: [CELO_MAINNET_PARAMS],

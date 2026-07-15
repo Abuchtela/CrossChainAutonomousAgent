@@ -55,13 +55,15 @@ function parseEntryAmount(entry) {
 }
 
 function generateEntryId(timestamp, index) {
-  if (typeof globalThis !== 'undefined' && typeof globalThis.crypto?.randomUUID === 'function') {
-    return globalThis.crypto.randomUUID();
+  const cryptoApi = typeof globalThis !== 'undefined' ? globalThis.crypto : undefined;
+
+  if (typeof cryptoApi?.randomUUID === 'function') {
+    return cryptoApi.randomUUID();
   }
 
-  if (typeof globalThis !== 'undefined' && typeof globalThis.crypto?.getRandomValues === 'function') {
+  if (typeof cryptoApi?.getRandomValues === 'function') {
     const randomBytes = new Uint8Array(8);
-    globalThis.crypto.getRandomValues(randomBytes);
+    cryptoApi.getRandomValues(randomBytes);
     const randomSuffix = Array.from(randomBytes, (value) => value.toString(16).padStart(2, '0')).join('');
     return `${Date.parse(timestamp) || Date.now()}-${index}-${randomSuffix}`;
   }
