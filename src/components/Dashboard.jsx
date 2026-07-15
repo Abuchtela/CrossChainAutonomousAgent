@@ -175,7 +175,7 @@ const Dashboard = () => {
     try {
       const { account, provider } = await connectMiniPay();
       if (!account) {
-        throw new Error('No wallet account was returned.');
+        throw new Error('Failed to retrieve a wallet account. Please unlock your wallet and try again.');
       }
 
       setMiniPayReady(true);
@@ -252,7 +252,8 @@ const Dashboard = () => {
                 ${celoImpactMetrics.totalIssued.toFixed(4)}
               </span>
               <p className="muted-text stat-caption">
-                {celoImpactMetrics.issuanceCount} issuance{celoImpactMetrics.issuanceCount === 1 ? '' : 's'} logged
+                {celoImpactMetrics.issuanceCount}{' '}
+                {celoImpactMetrics.issuanceCount === 1 ? 'issuance' : 'issuances'} logged
               </p>
             </div>
           </section>

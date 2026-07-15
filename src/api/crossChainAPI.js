@@ -206,7 +206,7 @@ export async function fetchStacksNodeInfo() {
 export function getInjectedProvider({ preferMiniPay = false } = {}) {
   if (typeof window === 'undefined') return null;
 
-  const providers = window.ethereum?.providers || (window.ethereum ? [window.ethereum] : []);
+  const providers = window.ethereum?.providers ?? [window.ethereum].filter(Boolean);
   if (providers.length === 0) {
     return null;
   }

@@ -1,5 +1,6 @@
 const STORAGE_KEY = 'crosschain_ledger';
 const CELO_CHAIN_KEY = 'celo';
+let entryIdCounter = 0;
 
 const SEED_ENTRIES = [
   {
@@ -74,7 +75,7 @@ function generateEntryId(timestamp, index) {
       ? Math.floor(globalThis.performance.now() * 1000)
       : Date.now();
 
-  return `${Date.parse(timestamp) || Date.now()}-${index}-${perfSuffix}`;
+  return `${Date.parse(timestamp) || Date.now()}-${index}-${perfSuffix}-${entryIdCounter++}`;
 }
 
 function normaliseEntry(entry, index = 0) {
