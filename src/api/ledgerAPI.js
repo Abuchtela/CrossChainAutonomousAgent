@@ -1,4 +1,5 @@
 const STORAGE_KEY = 'crosschain_ledger';
+const CELO_CHAIN_KEY = 'celo';
 
 const SEED_ENTRIES = [
   {
@@ -68,7 +69,7 @@ function generateEntryId(timestamp, index) {
     return `${Date.parse(timestamp) || Date.now()}-${index}-${randomSuffix}`;
   }
 
-  return `${Date.parse(timestamp) || Date.now()}-${index}`;
+  return `${Date.parse(timestamp) || Date.now()}-${index}-${Math.random().toString(16).slice(2, 10)}`;
 }
 
 function normaliseEntry(entry, index = 0) {
@@ -150,7 +151,7 @@ export function getTotalPnL(entries = loadLedger()) {
 
 export function getCeloImpactMetrics(entries = loadLedger()) {
   const issuedEntries = entries
-    .filter((entry) => entry.chain === 'celo' && entry.type !== 'expense')
+    .filter((entry) => entry.chain === CELO_CHAIN_KEY && entry.type !== 'expense')
     .sort((a, b) => a.timestamp.localeCompare(b.timestamp));
 
   const totalIssued = issuedEntries.reduce((sum, entry) => sum + entry.amount, 0);
