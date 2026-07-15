@@ -55,8 +55,8 @@ function parseEntryAmount(entry) {
 }
 
 function generateEntryId(timestamp, index) {
-  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-    return crypto.randomUUID();
+  if (typeof globalThis !== 'undefined' && typeof globalThis.crypto?.randomUUID === 'function') {
+    return globalThis.crypto.randomUUID();
   }
 
   return `${Date.parse(timestamp) || Date.now()}-${index}-${Math.random().toString(36).slice(2, 8)}`;

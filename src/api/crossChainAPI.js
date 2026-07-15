@@ -10,6 +10,8 @@ const CELO_MAINNET_PARAMS = {
   blockExplorerUrls: ['https://celoscan.io'],
 };
 
+const UNRECOGNIZED_CHAIN_ERROR = 4902;
+
 const CHAINS = {
   base: {
     name: 'Base',
@@ -179,7 +181,7 @@ export async function switchToCeloMainnet(provider = getInjectedProvider({ prefe
       params: [{ chainId: CELO_MAINNET_PARAMS.chainId }],
     });
   } catch (error) {
-    if (error?.code === 4902) {
+    if (error?.code === UNRECOGNIZED_CHAIN_ERROR) {
       await provider.request({
         method: 'wallet_addEthereumChain',
         params: [CELO_MAINNET_PARAMS],
