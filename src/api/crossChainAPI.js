@@ -11,6 +11,7 @@ const CELO_MAINNET_PARAMS = {
 };
 
 const UNRECOGNIZED_CHAIN_ERROR = 4902;
+const EVM_ADDRESS_PATTERN = /^0x[a-fA-F0-9]{40}$/;
 
 const CHAINS = {
   base: {
@@ -79,6 +80,10 @@ async function postRpc(chain, method, params = []) {
   }
 
   return data.result;
+}
+
+function isEvmAddress(value) {
+  return EVM_ADDRESS_PATTERN.test(String(value || '').trim());
 }
 
 async function fetchEVMBalance(chain, address) {
@@ -157,6 +162,38 @@ export async function fetchBlockNumber(chainKey) {
 
   const result = await postRpc(chain, 'eth_blockNumber');
   return Number(BigInt(result));
+}
+
+export async function fetchContractDeploymentStatus(chainKey, contractAddress) {
+  const chain = CHAINS[chainKey];
+  if (!chain || chainKey === 'stacks') {
+    throw new Error(`Contract deployment status is unavailable for ${chainKey}.`);
+  }
+
+  const address = String(contractAddress || '').trim();
+  if (!address) {
+    return {
+      configured: false,
+      deployed: false,
+      address: '',
+    };
+  }
+
+  if (!isEvmAddress(address)) {
+    return {
+      configured: true,
+      deployed: false,
+      address,
+      error: 'Configured contract address is invalid.',
+    };
+  }
+
+  const code = await postRpc(chain, 'eth_getCode', [address, 'latest']);
+  return {
+    configured: true,
+    deployed: code !== '0x',
+    address,
+  };
 }
 
 export async function fetchStacksNodeInfo() {

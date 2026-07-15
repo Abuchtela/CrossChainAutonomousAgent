@@ -6,6 +6,7 @@ Autonomous multi-chain agent dashboard for **Base**, **Optimism**, **Celo**, and
 
 - 📊 **Live chain balances** — native ETH on Base & Optimism, CELO on Celo, STX on Stacks
 - 💳 **MiniPay connect** — connect a Celo-ready wallet and switch to Celo mainnet
+- 🌱 **Celo impact metrics** — see issued impact totals from the ledger and verify whether the Celo contract is deployed
 - 💹 **Profit charts** — line & bar charts powered by Recharts
 - 📒 **Hidden ledger** — log income, expenses, and trades per chain
 - 📁 **CSV export** — download your full ledger history
@@ -47,6 +48,7 @@ Open `.env` and set your preferred RPC endpoints. Public defaults are included s
 | `REACT_APP_BASE_RPC_URL` | `https://mainnet.base.org` | Base mainnet JSON-RPC endpoint |
 | `REACT_APP_OPTIMISM_RPC_URL` | `https://mainnet.optimism.io` | Optimism mainnet JSON-RPC endpoint |
 | `REACT_APP_CELO_RPC_URL` | `https://forno.celo.org` | Celo mainnet JSON-RPC endpoint |
+| `REACT_APP_CELO_IMPACT_CONTRACT_ADDRESS` | _(empty)_ | Optional deployed Celo contract address used to verify impact-issued metrics |
 | `REACT_APP_STACKS_NETWORK` | `mainnet` | Stacks network (`mainnet` or `testnet`) |
 
 > **Never commit your `.env` file.** It is already listed in `.gitignore`.
@@ -101,9 +103,10 @@ public/
 
 1. Enter your **EVM wallet address** (for Base, Optimism, and Celo balances), or use **Connect MiniPay** to auto-fill it from a Celo wallet.
 2. Enter your **Stacks address** (for STX balance).
-3. Use the **Activity Logger** on the Dashboard to record income, expenses, and trades.
-4. Switch to the **Portfolio** tab to browse the full ledger, apply filters, and export a CSV.
-5. View cumulative P&L and daily income trends in the **Profit Chart**.
+3. Use the **Celo Impact Metrics** card to confirm whether your Celo impact contract is deployed and configured.
+4. Use the **Activity Logger** on the Dashboard to record income, expenses, and trades.
+5. Switch to the **Portfolio** tab to browse the full ledger, apply filters, and export a CSV.
+6. View cumulative P&L and daily income trends in the **Profit Chart**.
 
 ## License
 

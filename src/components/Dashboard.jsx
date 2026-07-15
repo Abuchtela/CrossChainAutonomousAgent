@@ -2,14 +2,16 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   getAllBalances,
   connectMiniPay,
+  fetchContractDeploymentStatus,
   getInjectedProvider,
   CHAINS as CHAIN_CONFIG,
 } from '../api/crossChainAPI';
-import { getTodayIncome, getTotalPnL, addEntry } from '../api/ledgerAPI';
+import { getTodayIncome, getTotalPnL, getCeloImpactMetrics, addEntry } from '../api/ledgerAPI';
 import ProfitChart from './ProfitChart';
 import PortfolioPage from './PortfolioPage';
 
 const CHAIN_KEYS = Object.keys(CHAIN_CONFIG);
+const CELO_IMPACT_CONTRACT_ADDRESS = (process.env.REACT_APP_CELO_IMPACT_CONTRACT_ADDRESS || '').trim();
 
 const CHAIN_COLORS = {
   base: '#0052ff',
@@ -45,6 +47,13 @@ const Dashboard = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [todayIncome, setTodayIncome] = useState(0);
   const [totalPnL, setTotalPnL] = useState(0);
+  const [celoImpactMetrics, setCeloImpactMetrics] = useState(() => getCeloImpactMetrics());
+  const [celoContractStatus, setCeloContractStatus] = useState({
+    configured: Boolean(CELO_IMPACT_CONTRACT_ADDRESS),
+    deployed: false,
+    address: CELO_IMPACT_CONTRACT_ADDRESS,
+  });
+  const [checkingCeloContract, setCheckingCeloContract] = useState(false);
   const [newEntry, setNewEntry] = useState({
     type: 'income',
     amount: '',
@@ -58,10 +67,38 @@ const Dashboard = () => {
   const refreshStats = useCallback(() => {
     setTodayIncome(getTodayIncome());
     setTotalPnL(getTotalPnL());
+    setCeloImpactMetrics(getCeloImpactMetrics());
+  }, []);
+
+  const refreshCeloContractStatus = useCallback(async () => {
+    if (!CELO_IMPACT_CONTRACT_ADDRESS) {
+      setCeloContractStatus({
+        configured: false,
+        deployed: false,
+        address: '',
+      });
+      return;
+    }
+
+    setCheckingCeloContract(true);
+    try {
+      const status = await fetchContractDeploymentStatus('celo', CELO_IMPACT_CONTRACT_ADDRESS);
+      setCeloContractStatus(status);
+    } catch (error) {
+      setCeloContractStatus({
+        configured: true,
+        deployed: false,
+        address: CELO_IMPACT_CONTRACT_ADDRESS,
+        error: error.message,
+      });
+    } finally {
+      setCheckingCeloContract(false);
+    }
   }, []);
 
   useEffect(() => {
     refreshStats();
+    refreshCeloContractStatus();
     const provider = getInjectedProvider({ preferMiniPay: true });
     if (provider) {
       setMiniPayReady(true);
@@ -77,7 +114,7 @@ const Dashboard = () => {
     } catch {
       // ignore corrupted storage
     }
-  }, [refreshStats]);
+  }, [refreshCeloContractStatus, refreshStats]);
 
   const showNotification = useCallback((msg) => {
     setNotification(msg);
@@ -184,6 +221,72 @@ const Dashboard = () => {
                 ${totalPnL.toFixed(4)}
               </span>
             </div>
+            <div className="stat-item">
+              <span className="stat-label">Celo Impact Issued</span>
+              <span className={`stat-value ${celoImpactMetrics.totalIssued >= 0 ? 'positive' : 'negative'}`}>
+                ${celoImpactMetrics.totalIssued.toFixed(4)}
+              </span>
+              <p className="muted-text stat-caption">
+                {celoImpactMetrics.issuanceCount} issuance{celoImpactMetrics.issuanceCount === 1 ? '' : 's'} logged
+              </p>
+            </div>
+          </section>
+
+          <section className="card">
+            <div className="impact-header">
+              <div>
+                <h2>Celo Impact Metrics</h2>
+                <p className="muted-text">
+                  Impact-issued totals come from the Celo ledger and are verified against an optional
+                  deployed contract address.
+                </p>
+              </div>
+              <span
+                className={`status-pill ${
+                  celoContractStatus.deployed
+                    ? 'status-pill-success'
+                    : celoContractStatus.configured
+                      ? 'status-pill-warning'
+                      : 'status-pill-muted'
+                }`}
+              >
+                {checkingCeloContract
+                  ? 'Checking deployment…'
+                  : celoContractStatus.deployed
+                    ? 'Contract deployed'
+                    : celoContractStatus.configured
+                      ? 'Contract missing'
+                      : 'Contract not configured'}
+              </span>
+            </div>
+
+            <div className="impact-metrics-grid">
+              <div className="impact-metric">
+                <span className="stat-label">Total Issued</span>
+                <strong className="impact-metric-value">${celoImpactMetrics.totalIssued.toFixed(4)}</strong>
+              </div>
+              <div className="impact-metric">
+                <span className="stat-label">Issuances</span>
+                <strong className="impact-metric-value">{celoImpactMetrics.issuanceCount}</strong>
+              </div>
+              <div className="impact-metric">
+                <span className="stat-label">Last Issued</span>
+                <strong className="impact-metric-value">
+                  {celoImpactMetrics.lastIssuedAt
+                    ? new Date(celoImpactMetrics.lastIssuedAt).toLocaleString()
+                    : 'No Celo issuance logged'}
+                </strong>
+              </div>
+            </div>
+
+            <p className="muted-text impact-note">
+              {celoContractStatus.deployed
+                ? `Verified Celo contract: ${celoContractStatus.address}`
+                : celoContractStatus.configured
+                  ? `No bytecode was found at ${celoContractStatus.address}. Deploy the Celo impact contract there to verify issued metrics on-chain.`
+                  : 'Set REACT_APP_CELO_IMPACT_CONTRACT_ADDRESS after deploying the Celo impact contract so the dashboard can verify issued metrics on-chain.'}
+            </p>
+            {celoContractStatus.error && <p className="error-text">{celoContractStatus.error}</p>}
           </section>
 
           <section className="card">

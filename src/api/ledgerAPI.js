@@ -148,6 +148,21 @@ export function getTotalPnL(entries = loadLedger()) {
   }, 0);
 }
 
+export function getCeloImpactMetrics(entries = loadLedger()) {
+  const issuedEntries = entries
+    .filter((entry) => entry.chain === 'celo' && entry.type !== 'expense')
+    .sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+
+  const totalIssued = issuedEntries.reduce((sum, entry) => sum + entry.amount, 0);
+  const lastIssuedAt = issuedEntries.length > 0 ? issuedEntries[issuedEntries.length - 1].timestamp : null;
+
+  return {
+    totalIssued: Number(totalIssued.toFixed(4)),
+    issuanceCount: issuedEntries.length,
+    lastIssuedAt,
+  };
+}
+
 export function totalIncome(entries = loadLedger()) {
   return entries.reduce((sum, entry) => {
     if (entry.type === 'expense') return sum;
