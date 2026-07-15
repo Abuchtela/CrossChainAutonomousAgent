@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { CHAINS as CHAIN_CONFIG } from '../api/crossChainAPI';
 import { getEntries, getTodayIncome, getTotalPnL, exportToCSV, clearLedger } from '../api/ledgerAPI';
 
 const TYPE_COLORS = {
@@ -6,6 +7,8 @@ const TYPE_COLORS = {
   expense: '#fc8181',
   trade: '#63b3ed',
 };
+
+const CHAIN_KEYS = Object.keys(CHAIN_CONFIG);
 
 const PortfolioPage = ({ onBack }) => {
   const [entries, setEntries] = useState([]);
@@ -107,9 +110,11 @@ const PortfolioPage = ({ onBack }) => {
               onChange={(e) => setFilter({ ...filter, chain: e.target.value })}
             >
               <option value="all">All Chains</option>
-              <option value="base">Base</option>
-              <option value="optimism">Optimism</option>
-              <option value="stacks">Stacks</option>
+              {CHAIN_KEYS.map((chain) => (
+                <option key={chain} value={chain}>
+                  {CHAIN_CONFIG[chain].name}
+                </option>
+              ))}
             </select>
           </div>
           <div className="filter-actions">
@@ -155,7 +160,9 @@ const PortfolioPage = ({ onBack }) => {
                         {entry.type}
                       </span>
                     </td>
-                    <td className="td-chain">{entry.chain}</td>
+                    <td className="td-chain">
+                      {CHAIN_CONFIG[entry.chain]?.name || entry.chain}
+                    </td>
                     <td
                       className={
                         entry.type === 'expense' ? 'td-amount negative' : 'td-amount positive'

@@ -1,16 +1,75 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { getAllBalances } from '../api/crossChainAPI';
-import { getTodayIncome, getTotalPnL, addEntry } from '../api/ledgerAPI';
+import {
+  getAllBalances,
+  connectMiniPay,
+  fetchContractDeploymentStatus,
+  getInjectedProvider,
+  isEvmAddress,
+  CHAINS as CHAIN_CONFIG,
+} from '../api/crossChainAPI';
+import { getTodayIncome, getTotalPnL, getCeloImpactMetrics, addEntry } from '../api/ledgerAPI';
 import ProfitChart from './ProfitChart';
 import PortfolioPage from './PortfolioPage';
 
-const CHAINS = ['base', 'optimism', 'stacks'];
+const CHAIN_KEYS = Object.keys(CHAIN_CONFIG);
+const CELO_CONTRACT_STORAGE_KEY = 'celo_impact_contract_address';
+const DEFAULT_CELO_IMPACT_CONTRACT_ADDRESS = (process.env.REACT_APP_CELO_IMPACT_CONTRACT_ADDRESS || '').trim();
+const CELO_CONTRACT_REQUIREMENTS = [
+  'Deploy the impact contract to Celo mainnet before enabling on-chain verification.',
+  'Use a valid 0x-prefixed EVM contract address.',
+  'Keep the configured Celo RPC endpoint pointed at the network that hosts the contract.',
+  'Ensure bytecode is live at the saved address so the dashboard can verify deployment.',
+];
+
+function loadConfiguredCeloContractAddress() {
+  if (typeof window === 'undefined') {
+    return DEFAULT_CELO_IMPACT_CONTRACT_ADDRESS;
+  }
+
+  try {
+    return (
+      localStorage.getItem(CELO_CONTRACT_STORAGE_KEY)?.trim() || DEFAULT_CELO_IMPACT_CONTRACT_ADDRESS
+    );
+  } catch {
+    return DEFAULT_CELO_IMPACT_CONTRACT_ADDRESS;
+  }
+}
 
 const CHAIN_COLORS = {
   base: '#0052ff',
   optimism: '#ff0420',
+  celo: '#35d07f',
   stacks: '#5546ff',
 };
+
+function getCeloContractStatusLabel(checkingCeloContract, celoContractStatus) {
+  if (checkingCeloContract) return 'Checking deployment…';
+  if (celoContractStatus.deployed) return 'Contract deployed';
+  if (celoContractStatus.configured) return 'Contract missing';
+  return 'Contract not configured';
+}
+
+function getCeloContractStatusClass(celoContractStatus) {
+  if (celoContractStatus.deployed) return 'status-pill-success';
+  if (celoContractStatus.configured) return 'status-pill-warning';
+  return 'status-pill-muted';
+}
+
+function getCeloContractNote(celoContractStatus) {
+  if (celoContractStatus.deployed) {
+    return `Verified Celo contract: ${celoContractStatus.address}`;
+  }
+
+  if (celoContractStatus.error === 'Configured contract address is invalid.') {
+    return 'Enter a valid Celo contract address to verify deployment on-chain.';
+  }
+
+  if (celoContractStatus.configured) {
+    return `No bytecode was found at ${celoContractStatus.address}. Deploy the Celo impact contract there to verify issued metrics on-chain.`;
+  }
+
+  return 'Save a deployed contract address below, or set REACT_APP_CELO_IMPACT_CONTRACT_ADDRESS, so the dashboard can verify issued metrics on-chain.';
+}
 
 const ChainCard = ({ chain, data, loading }) => (
   <div className="chain-card" style={{ borderLeft: `4px solid ${CHAIN_COLORS[chain]}` }}>
@@ -35,9 +94,21 @@ const Dashboard = () => {
   const [stacksAddress, setStacksAddress] = useState('');
   const [balances, setBalances] = useState({});
   const [loading, setLoading] = useState(false);
+  const [connectingWallet, setConnectingWallet] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [todayIncome, setTodayIncome] = useState(0);
   const [totalPnL, setTotalPnL] = useState(0);
+  const [celoImpactMetrics, setCeloImpactMetrics] = useState(() => getCeloImpactMetrics());
+  const [configuredCeloContractAddress, setConfiguredCeloContractAddress] = useState(
+    loadConfiguredCeloContractAddress
+  );
+  const [contractAddressInput, setContractAddressInput] = useState(loadConfiguredCeloContractAddress);
+  const [celoContractStatus, setCeloContractStatus] = useState({
+    configured: Boolean(loadConfiguredCeloContractAddress()),
+    deployed: false,
+    address: loadConfiguredCeloContractAddress(),
+  });
+  const [checkingCeloContract, setCheckingCeloContract] = useState(false);
   const [newEntry, setNewEntry] = useState({
     type: 'income',
     amount: '',
@@ -45,14 +116,50 @@ const Dashboard = () => {
     chain: 'base',
   });
   const [notification, setNotification] = useState('');
+  const [walletProviderLabel, setWalletProviderLabel] = useState('');
+  const [miniPayReady, setMiniPayReady] = useState(false);
 
   const refreshStats = useCallback(() => {
     setTodayIncome(getTodayIncome());
     setTotalPnL(getTotalPnL());
+    setCeloImpactMetrics(getCeloImpactMetrics());
   }, []);
+
+  const refreshCeloContractStatus = useCallback(async (nextAddress = configuredCeloContractAddress) => {
+    const address = String(nextAddress || '').trim();
+    if (!address) {
+      setCeloContractStatus({
+        configured: false,
+        deployed: false,
+        address: '',
+      });
+      return;
+    }
+
+    setCheckingCeloContract(true);
+    try {
+      const status = await fetchContractDeploymentStatus('celo', address);
+      setCeloContractStatus(status);
+    } catch (error) {
+      setCeloContractStatus({
+        configured: true,
+        deployed: false,
+        address,
+        error: error.message,
+      });
+    } finally {
+      setCheckingCeloContract(false);
+    }
+  }, [configuredCeloContractAddress]);
 
   useEffect(() => {
     refreshStats();
+    refreshCeloContractStatus();
+    const provider = getInjectedProvider({ preferMiniPay: true });
+    if (provider) {
+      setMiniPayReady(true);
+      setWalletProviderLabel(provider.isMiniPay ? 'MiniPay detected' : 'Injected wallet detected');
+    }
     try {
       const stored = localStorage.getItem('agent_addresses');
       if (stored) {
@@ -63,7 +170,7 @@ const Dashboard = () => {
     } catch {
       // ignore corrupted storage
     }
-  }, [refreshStats]);
+  }, [refreshCeloContractStatus, refreshStats]);
 
   const showNotification = useCallback((msg) => {
     setNotification(msg);
@@ -94,6 +201,30 @@ const Dashboard = () => {
     showNotification('Addresses saved!');
   };
 
+  const handleConnectMiniPay = async () => {
+    setConnectingWallet(true);
+    try {
+      const { account, provider } = await connectMiniPay();
+      if (!account) {
+        throw new Error('Wallet connection succeeded but no account was returned. Please unlock your wallet and try again.');
+      }
+
+      setMiniPayReady(true);
+      setWalletProviderLabel(provider?.isMiniPay ? 'Connected with MiniPay' : 'Connected with wallet');
+      setEvmAddress(account);
+      localStorage.setItem(
+        'agent_addresses',
+        JSON.stringify({ evm: account, stacks: stacksAddress })
+      );
+      await fetchBalances(account, stacksAddress);
+      showNotification(provider?.isMiniPay ? 'MiniPay connected on Celo.' : 'Wallet connected on Celo.');
+    } catch (error) {
+      showNotification(`Wallet connection failed: ${error.message}`);
+    } finally {
+      setConnectingWallet(false);
+    }
+  };
+
   const handleAddEntry = (e) => {
     e.preventDefault();
     if (!newEntry.amount || isNaN(parseFloat(newEntry.amount))) {
@@ -104,6 +235,44 @@ const Dashboard = () => {
     refreshStats();
     setNewEntry({ type: 'income', amount: '', description: '', chain: 'base' });
     showNotification('Entry added to ledger!');
+  };
+
+  const handleSaveContractAddress = async () => {
+    const nextAddress = contractAddressInput.trim();
+
+    if (nextAddress && !isEvmAddress(nextAddress)) {
+      setCeloContractStatus({
+        configured: true,
+        deployed: false,
+        address: nextAddress,
+        error: 'Configured contract address is invalid.',
+      });
+      showNotification('Enter a valid 0x contract address.');
+      return;
+    }
+
+    try {
+      if (nextAddress) {
+        localStorage.setItem(CELO_CONTRACT_STORAGE_KEY, nextAddress);
+      } else {
+        localStorage.removeItem(CELO_CONTRACT_STORAGE_KEY);
+      }
+    } catch {
+      showNotification('Failed to save the contract address locally.');
+      return;
+    }
+
+    const resolvedAddress = nextAddress || DEFAULT_CELO_IMPACT_CONTRACT_ADDRESS;
+    setConfiguredCeloContractAddress(resolvedAddress);
+    setContractAddressInput(resolvedAddress);
+    await refreshCeloContractStatus(resolvedAddress);
+    showNotification(
+      nextAddress
+        ? 'Celo contract address saved.'
+        : resolvedAddress
+          ? 'Local override removed. Using the default contract address.'
+          : 'Celo contract address cleared.'
+    );
   };
 
   return (
@@ -146,13 +315,102 @@ const Dashboard = () => {
                 ${totalPnL.toFixed(4)}
               </span>
             </div>
+            <div className="stat-item">
+              <span className="stat-label">Celo Impact Issued</span>
+              <span className={`stat-value ${celoImpactMetrics.totalIssued >= 0 ? 'positive' : 'negative'}`}>
+                ${celoImpactMetrics.totalIssued.toFixed(4)}
+              </span>
+              <p className="muted-text stat-caption">
+                {celoImpactMetrics.issuanceCount}{' '}
+                {celoImpactMetrics.issuanceCount === 1 ? 'issuance' : 'issuances'} logged
+              </p>
+            </div>
+          </section>
+
+          <section className="card">
+            <div className="impact-header">
+              <div>
+                <h2>Celo Impact Metrics</h2>
+                <p className="muted-text">
+                  Impact-issued totals come from the Celo ledger and are verified against an optional
+                  deployed contract address.
+                </p>
+              </div>
+              <span
+                className={`status-pill ${getCeloContractStatusClass(celoContractStatus)}`}
+              >
+                {getCeloContractStatusLabel(checkingCeloContract, celoContractStatus)}
+              </span>
+            </div>
+
+            <div className="impact-metrics-grid">
+              <div className="impact-metric">
+                <span className="stat-label">Total Issued</span>
+                <strong className="impact-metric-value">${celoImpactMetrics.totalIssued.toFixed(4)}</strong>
+              </div>
+              <div className="impact-metric">
+                <span className="stat-label">Issuances</span>
+                <strong className="impact-metric-value">{celoImpactMetrics.issuanceCount}</strong>
+              </div>
+              <div className="impact-metric">
+                <span className="stat-label">Last Issued</span>
+                <strong className="impact-metric-value">
+                  {celoImpactMetrics.lastIssuedAt
+                    ? new Date(celoImpactMetrics.lastIssuedAt).toLocaleString()
+                    : 'No Celo issuance logged'}
+                </strong>
+              </div>
+            </div>
+
+            <p className="muted-text impact-note">
+              {getCeloContractNote(celoContractStatus)}
+            </p>
+            {celoContractStatus.error && <p className="error-text">{celoContractStatus.error}</p>}
+
+            <div className="contract-settings">
+              <div className="form-group">
+                <label>Celo Impact Contract Address</label>
+                <input
+                  type="text"
+                  className="input"
+                  placeholder="0x..."
+                  value={contractAddressInput}
+                  onChange={(e) => setContractAddressInput(e.target.value)}
+                />
+              </div>
+              <div className="button-row">
+                <button
+                  className="btn btn-primary"
+                  onClick={handleSaveContractAddress}
+                  disabled={checkingCeloContract}
+                >
+                  {checkingCeloContract ? 'Checking…' : 'Save Contract Address'}
+                </button>
+              </div>
+              <p className="muted-text contract-config-note">
+                Saved in this browser. Leave the field blank and save to clear the local override.
+              </p>
+            </div>
+
+            <div className="contract-requirements">
+              <span className="stat-label">Deployment Requirements</span>
+              <ul className="requirements-list">
+                {CELO_CONTRACT_REQUIREMENTS.map((requirement) => (
+                  <li key={requirement}>{requirement}</li>
+                ))}
+              </ul>
+            </div>
           </section>
 
           <section className="card">
             <h2>Wallet Addresses</h2>
+            <p className="muted-text" style={{ marginBottom: '1rem' }}>
+              Use your EVM wallet for Base, Optimism, and Celo. Connect MiniPay to auto-fill your
+              Celo-ready address.
+            </p>
             <div className="address-form">
               <div className="form-group">
-                <label>EVM Address (Base &amp; Optimism)</label>
+                <label>EVM Address (Base, Optimism &amp; Celo)</label>
                 <input
                   type="text"
                   className="input"
@@ -172,6 +430,13 @@ const Dashboard = () => {
                 />
               </div>
               <div className="button-row">
+                <button
+                  className="btn btn-secondary"
+                  onClick={handleConnectMiniPay}
+                  disabled={connectingWallet}
+                >
+                  {connectingWallet ? 'Connecting…' : 'Connect MiniPay'}
+                </button>
                 <button className="btn btn-primary" onClick={saveAddresses}>
                   Save &amp; Refresh
                 </button>
@@ -183,13 +448,18 @@ const Dashboard = () => {
                   {loading ? 'Loading…' : '↻ Refresh Balances'}
                 </button>
               </div>
+              <p className="muted-text">
+                {miniPayReady
+                  ? `${walletProviderLabel} — Celo balances will be fetched with the same EVM address.`
+                  : 'MiniPay not detected. You can still paste any Celo-compatible EVM address manually.'}
+              </p>
             </div>
           </section>
 
           <section>
             <h2>Chain Balances</h2>
             <div className="chains-grid">
-              {CHAINS.map((chain) => (
+              {CHAIN_KEYS.map((chain) => (
                 <ChainCard
                   key={chain}
                   chain={chain}
@@ -228,9 +498,9 @@ const Dashboard = () => {
                     value={newEntry.chain}
                     onChange={(e) => setNewEntry({ ...newEntry, chain: e.target.value })}
                   >
-                    {CHAINS.map((c) => (
+                    {CHAIN_KEYS.map((c) => (
                       <option key={c} value={c}>
-                        {c.charAt(0).toUpperCase() + c.slice(1)}
+                        {CHAIN_CONFIG[c].name}
                       </option>
                     ))}
                   </select>
