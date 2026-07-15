@@ -46,18 +46,29 @@ function normaliseChain(chain) {
   return String(chain || 'base').trim().toLowerCase();
 }
 
+function parseEntryAmount(entry) {
+  if (typeof entry.amount === 'number') return entry.amount;
+  if (typeof entry.usd === 'number') return entry.usd;
+
+  const parsed = parseFloat(entry.amount || entry.usd || 0);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function generateEntryId(timestamp, index) {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+
+  return `${Date.parse(timestamp) || Date.now()}-${index}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
 function normaliseEntry(entry, index = 0) {
   const timestamp = entry.timestamp || entry.date || new Date().toISOString();
   const type = normaliseType(entry.type);
-  const amount =
-    typeof entry.amount === 'number'
-      ? entry.amount
-      : typeof entry.usd === 'number'
-        ? entry.usd
-        : parseFloat(entry.amount || entry.usd || 0);
+  const amount = parseEntryAmount(entry);
 
   return {
-    id: entry.id || `${Date.parse(timestamp) || Date.now()}-${index}`,
+    id: entry.id || generateEntryId(timestamp, index),
     timestamp: new Date(timestamp).toISOString(),
     chain: normaliseChain(entry.chain),
     type,

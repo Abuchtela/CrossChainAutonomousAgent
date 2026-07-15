@@ -234,7 +234,7 @@ const Dashboard = () => {
               </div>
               <p className="muted-text">
                 {miniPayReady
-                  ? `${walletProviderLabel}. Celo balances will be fetched with the same EVM address.`
+                  ? `${walletProviderLabel} — Celo balances will be fetched with the same EVM address.`
                   : 'MiniPay not detected. You can still paste any Celo-compatible EVM address manually.'}
               </p>
             </div>
