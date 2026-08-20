@@ -100,7 +100,7 @@ function isNormalisedEntry(entry) {
 
 export function loadLedger() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = globalThis.localStorage?.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed)) {
@@ -110,7 +110,7 @@ export function loadLedger() {
       }
     }
   } catch {
-    // ignore parse errors
+    // Ignore unavailable storage and malformed data.
   }
 
   saveLedger(SEED_ENTRIES);
@@ -118,10 +118,15 @@ export function loadLedger() {
 }
 
 export function saveLedger(entries) {
-  localStorage.setItem(
-    STORAGE_KEY,
-    JSON.stringify(entries.map((entry, index) => (isNormalisedEntry(entry) ? entry : normaliseEntry(entry, index))))
+  const serialised = JSON.stringify(
+    entries.map((entry, index) => (isNormalisedEntry(entry) ? entry : normaliseEntry(entry, index)))
   );
+
+  try {
+    globalThis.localStorage?.setItem(STORAGE_KEY, serialised);
+  } catch {
+    // Storage can be unavailable or full; ledger operations should remain usable in memory.
+  }
 }
 
 export function getEntries() {
