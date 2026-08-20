@@ -74,6 +74,12 @@ web_modules/
 .cache
 .parcel-cache
 
+# React / CRA production build
+/build
+
+# Exported ledger data
+ledger.csv
+
 # Next.js build output
 .next
 out

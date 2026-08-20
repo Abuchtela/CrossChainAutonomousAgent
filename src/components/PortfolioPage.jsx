@@ -1,136 +1,186 @@
-import React, { useState } from 'react';
-import { loadLedger, addLedgerEntry, totalIncome, chainTotals } from '../api/ledgerAPI';
-import { CHAINS } from '../api/crossChainAPI';
+import React, { useState, useEffect } from 'react';
+import { CHAINS as CHAIN_CONFIG } from '../api/crossChainAPI';
+import { getEntries, getTodayIncome, getTotalPnL, exportToCSV, clearLedger } from '../api/ledgerAPI';
 
-const CHAIN_KEYS = Object.keys(CHAINS);
-const TYPES = ['Vault Yield', 'Trading Profit', 'Bridge Fee', 'Other'];
+const TYPE_COLORS = {
+  income: '#48bb78',
+  expense: '#fc8181',
+  trade: '#63b3ed',
+};
 
-function emptyForm() {
-  return { date: new Date().toISOString().slice(0, 10), chain: 'Base', type: 'Vault Yield', amount: '', token: 'ETH', usd: '' };
-}
+const CHAIN_KEYS = Object.keys(CHAIN_CONFIG);
 
-export default function PortfolioPage() {
-  const [entries, setEntries] = useState(() => loadLedger());
-  const [form, setForm] = useState(emptyForm());
-  const [showForm, setShowForm] = useState(false);
+const PortfolioPage = ({ onBack }) => {
+  const [entries, setEntries] = useState([]);
+  const [filter, setFilter] = useState({ type: 'all', chain: 'all' });
+  const [todayIncome, setTodayIncome] = useState(0);
+  const [totalPnL, setTotalPnL] = useState(0);
+  const [confirmClear, setConfirmClear] = useState(false);
 
-  const income = totalIncome(entries);
-  const byChain = chainTotals(entries);
+  const refresh = () => {
+    setEntries(getEntries());
+    setTodayIncome(getTodayIncome());
+    setTotalPnL(getTotalPnL());
+  };
 
-  function handleChange(e) {
-    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
-  }
+  useEffect(() => {
+    refresh();
+  }, []);
 
-  function handleSubmit(e) {
-    e.preventDefault();
-    const entry = {
-      ...form,
-      amount: parseFloat(form.amount) || 0,
-      usd: parseFloat(form.usd) || 0,
-    };
-    const updated = addLedgerEntry(entry);
-    setEntries(updated);
-    setForm(emptyForm());
-    setShowForm(false);
-  }
+  const filtered = entries.filter((e) => {
+    if (filter.type !== 'all' && e.type !== filter.type) return false;
+    if (filter.chain !== 'all' && e.chain !== filter.chain) return false;
+    return true;
+  });
+
+  const handleExport = () => {
+    const csv = exportToCSV();
+    if (!csv) {
+      alert('No ledger entries to export.');
+      return;
+    }
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `ledger-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleClear = () => {
+    if (confirmClear) {
+      clearLedger();
+      refresh();
+      setConfirmClear(false);
+    } else {
+      setConfirmClear(true);
+      setTimeout(() => setConfirmClear(false), 4000);
+    }
+  };
 
   return (
-    <div>
-      <div className="grid">
-        <div className="card">
-          <h2>Total Portfolio Income</h2>
-          <div className="value">${income.toFixed(2)}</div>
-          <div className="sub">USD equivalent · all chains</div>
-        </div>
-        {byChain.map(({ chain, total }) => (
-          <div key={chain} className="card">
-            <h2>{chain}</h2>
-            <div className="value">${total.toFixed(2)}</div>
-            <div className="sub">USD income</div>
-          </div>
-        ))}
-      </div>
-
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-        <p className="section-title" style={{ margin: 0 }}>Hidden Ledger</p>
-        <button className="nav-btn" onClick={() => setShowForm(!showForm)}>
-          {showForm ? '✕ Cancel' : '+ Add Entry'}
+    <div className="portfolio-page">
+      <div className="portfolio-header">
+        <button className="btn btn-secondary btn-small" onClick={onBack}>
+          ← Back
         </button>
+        <h2>Portfolio &amp; Ledger</h2>
       </div>
 
-      {showForm && (
-        <div className="card" style={{ marginBottom: 20 }}>
-          <form onSubmit={handleSubmit} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
-            <label>
-              <div className="sub" style={{ marginBottom: 4 }}>Date</div>
-              <input type="date" name="date" value={form.date} onChange={handleChange}
-                style={{ background: '#0d1117', border: '1px solid #30363d', borderRadius: 6, padding: '6px 10px', color: '#c9d1d9', width: '100%' }} />
-            </label>
-            <label>
-              <div className="sub" style={{ marginBottom: 4 }}>Chain</div>
-              <select name="chain" value={form.chain} onChange={handleChange}
-                style={{ background: '#0d1117', border: '1px solid #30363d', borderRadius: 6, padding: '6px 10px', color: '#c9d1d9', width: '100%' }}>
-                {CHAIN_KEYS.map((k) => <option key={k}>{CHAINS[k].name}</option>)}
-              </select>
-            </label>
-            <label>
-              <div className="sub" style={{ marginBottom: 4 }}>Type</div>
-              <select name="type" value={form.type} onChange={handleChange}
-                style={{ background: '#0d1117', border: '1px solid #30363d', borderRadius: 6, padding: '6px 10px', color: '#c9d1d9', width: '100%' }}>
-                {TYPES.map((t) => <option key={t}>{t}</option>)}
-              </select>
-            </label>
-            <label>
-              <div className="sub" style={{ marginBottom: 4 }}>Amount</div>
-              <input type="number" name="amount" value={form.amount} onChange={handleChange} placeholder="0.00" step="any"
-                style={{ background: '#0d1117', border: '1px solid #30363d', borderRadius: 6, padding: '6px 10px', color: '#c9d1d9', width: '100%' }} />
-            </label>
-            <label>
-              <div className="sub" style={{ marginBottom: 4 }}>Token</div>
-              <input type="text" name="token" value={form.token} onChange={handleChange} placeholder="ETH"
-                style={{ background: '#0d1117', border: '1px solid #30363d', borderRadius: 6, padding: '6px 10px', color: '#c9d1d9', width: '100%' }} />
-            </label>
-            <label>
-              <div className="sub" style={{ marginBottom: 4 }}>USD Value</div>
-              <input type="number" name="usd" value={form.usd} onChange={handleChange} placeholder="0.00" step="any"
-                style={{ background: '#0d1117', border: '1px solid #30363d', borderRadius: 6, padding: '6px 10px', color: '#c9d1d9', width: '100%' }} />
-            </label>
-            <div style={{ gridColumn: '1 / -1', textAlign: 'right' }}>
-              <button type="submit" className="nav-btn active">Save Entry</button>
-            </div>
-          </form>
+      <div className="stats-bar">
+        <div className="stat-item">
+          <span className="stat-label">Today's Income</span>
+          <span className={`stat-value ${todayIncome >= 0 ? 'positive' : 'negative'}`}>
+            ${todayIncome.toFixed(4)}
+          </span>
         </div>
-      )}
+        <div className="stat-item">
+          <span className="stat-label">Total P&amp;L</span>
+          <span className={`stat-value ${totalPnL >= 0 ? 'positive' : 'negative'}`}>
+            ${totalPnL.toFixed(4)}
+          </span>
+        </div>
+        <div className="stat-item">
+          <span className="stat-label">Total Entries</span>
+          <span className="stat-value">{entries.length}</span>
+        </div>
+      </div>
 
       <div className="card">
-        <table className="ledger-table">
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>Chain</th>
-              <th>Type</th>
-              <th>Amount</th>
-              <th>Token</th>
-              <th>USD</th>
-            </tr>
-          </thead>
-          <tbody>
-            {entries.length === 0 && (
-              <tr><td colSpan={6} style={{ textAlign: 'center', color: '#8b949e', padding: 24 }}>No entries yet.</td></tr>
-            )}
-            {entries.map((e, i) => (
-              <tr key={i}>
-                <td>{e.date}</td>
-                <td><span className={`chain-badge chain-${e.chain.toLowerCase()}`}>{e.chain}</span></td>
-                <td>{e.type}</td>
-                <td className="positive">{e.amount}</td>
-                <td>{e.token}</td>
-                <td className="positive">${parseFloat(e.usd).toFixed(2)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="filter-row">
+          <div className="form-group">
+            <label>Type</label>
+            <select
+              className="input"
+              value={filter.type}
+              onChange={(e) => setFilter({ ...filter, type: e.target.value })}
+            >
+              <option value="all">All Types</option>
+              <option value="income">Income</option>
+              <option value="expense">Expense</option>
+              <option value="trade">Trade</option>
+            </select>
+          </div>
+          <div className="form-group">
+            <label>Chain</label>
+            <select
+              className="input"
+              value={filter.chain}
+              onChange={(e) => setFilter({ ...filter, chain: e.target.value })}
+            >
+              <option value="all">All Chains</option>
+              {CHAIN_KEYS.map((chain) => (
+                <option key={chain} value={chain}>
+                  {CHAIN_CONFIG[chain].name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="filter-actions">
+            <button className="btn btn-secondary btn-small" onClick={handleExport}>
+              ⬇ Export CSV
+            </button>
+            <button
+              className={`btn btn-small ${confirmClear ? 'btn-danger' : 'btn-secondary'}`}
+              onClick={handleClear}
+            >
+              {confirmClear ? 'Confirm Clear?' : '🗑 Clear'}
+            </button>
+          </div>
+        </div>
+
+        {filtered.length === 0 ? (
+          <p className="muted-text" style={{ padding: '1rem 0' }}>
+            No entries found. Log activity from the Dashboard tab to get started.
+          </p>
+        ) : (
+          <div className="table-wrapper">
+            <table className="ledger-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Type</th>
+                  <th>Chain</th>
+                  <th>Amount</th>
+                  <th>Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[...filtered].reverse().map((entry) => (
+                  <tr key={entry.id}>
+                    <td className="td-date">
+                      {new Date(entry.timestamp).toLocaleString()}
+                    </td>
+                    <td>
+                      <span
+                        className="badge"
+                        style={{ background: TYPE_COLORS[entry.type] || '#718096' }}
+                      >
+                        {entry.type}
+                      </span>
+                    </td>
+                    <td className="td-chain">
+                      {CHAIN_CONFIG[entry.chain]?.name || entry.chain}
+                    </td>
+                    <td
+                      className={
+                        entry.type === 'expense' ? 'td-amount negative' : 'td-amount positive'
+                      }
+                    >
+                      {entry.type === 'expense' ? '-' : '+'}$
+                      {parseFloat(entry.amount || 0).toFixed(4)}
+                    </td>
+                    <td className="td-desc">{entry.description || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );
-}
+};
+
+export default PortfolioPage;

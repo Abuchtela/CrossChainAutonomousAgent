@@ -1,71 +1,86 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
-  AreaChart, Area, BarChart, Bar,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  BarChart,
+  Bar,
 } from 'recharts';
+import { getChartData } from '../api/ledgerAPI';
 
-const CHAIN_COLORS = {
-  Base: '#58a6ff',
-  Optimism: '#ff7b72',
-  Stacks: '#56d364',
-};
+const SAMPLE_DATA = [
+  { date: 'Day 1', income: 0, expense: 0, pnl: 0 },
+];
 
-export default function ProfitChart({ daily, byChain }) {
+const ProfitChart = () => {
+  const [chartType, setChartType] = useState('line');
+
+  const rawData = getChartData();
+  const data = rawData.length > 0 ? rawData : SAMPLE_DATA;
+
   return (
-    <div>
-      <p className="section-title">Daily Income (USD)</p>
-      <div className="card" style={{ padding: '20px 10px' }}>
-        <ResponsiveContainer width="100%" height={220}>
-          <AreaChart data={daily} margin={{ top: 4, right: 20, left: 0, bottom: 4 }}>
-            <defs>
-              <linearGradient id="incomeGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#58a6ff" stopOpacity={0.25} />
-                <stop offset="95%" stopColor="#58a6ff" stopOpacity={0} />
-              </linearGradient>
-            </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#21262d" />
-            <XAxis dataKey="date" tick={{ fill: '#8b949e', fontSize: 11 }} />
-            <YAxis tick={{ fill: '#8b949e', fontSize: 11 }} unit="$" />
-            <Tooltip
-              contentStyle={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 8 }}
-              labelStyle={{ color: '#c9d1d9' }}
-              itemStyle={{ color: '#58a6ff' }}
-              formatter={(v) => [`$${v.toFixed(2)}`, 'Income']}
-            />
-            <Area
-              type="monotone"
-              dataKey="income"
-              stroke="#58a6ff"
-              strokeWidth={2}
-              fill="url(#incomeGrad)"
-            />
-          </AreaChart>
-        </ResponsiveContainer>
+    <div className="profit-chart">
+      <div className="chart-controls">
+        <button
+          className={`btn btn-small ${chartType === 'line' ? 'btn-primary' : 'btn-secondary'}`}
+          onClick={() => setChartType('line')}
+        >
+          Line
+        </button>
+        <button
+          className={`btn btn-small ${chartType === 'bar' ? 'btn-primary' : 'btn-secondary'}`}
+          onClick={() => setChartType('bar')}
+        >
+          Bar
+        </button>
       </div>
 
-      <p className="section-title" style={{ marginTop: 24 }}>Income by Chain (USD)</p>
-      <div className="card" style={{ padding: '20px 10px' }}>
-        <ResponsiveContainer width="100%" height={180}>
-          <BarChart data={byChain} margin={{ top: 4, right: 20, left: 0, bottom: 4 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#21262d" />
-            <XAxis dataKey="chain" tick={{ fill: '#8b949e', fontSize: 11 }} />
-            <YAxis tick={{ fill: '#8b949e', fontSize: 11 }} unit="$" />
+      {data.length === 1 && data[0].date === 'Day 1' && (
+        <p className="muted-text chart-empty-msg">
+          No ledger entries yet — log activity to see your profit chart.
+        </p>
+      )}
+
+      <ResponsiveContainer width="100%" height={280}>
+        {chartType === 'line' ? (
+          <LineChart data={data} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#2d3748" />
+            <XAxis dataKey="date" stroke="#718096" tick={{ fontSize: 12 }} />
+            <YAxis stroke="#718096" tick={{ fontSize: 12 }} tickFormatter={(v) => `$${v}`} />
             <Tooltip
-              contentStyle={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 8 }}
-              labelStyle={{ color: '#c9d1d9' }}
-              formatter={(v, name, props) => [`$${v.toFixed(2)}`, props.payload.chain]}
+              contentStyle={{ background: '#1a202c', border: '1px solid #2d3748', borderRadius: 6 }}
+              labelStyle={{ color: '#e2e8f0' }}
+              formatter={(value) => [`$${value.toFixed(4)}`, undefined]}
             />
-            <Bar dataKey="total" radius={[4, 4, 0, 0]}
-              fill="#58a6ff"
-              label={false}
-            >
-              {byChain.map((entry) => (
-                <rect key={entry.chain} fill={CHAIN_COLORS[entry.chain] || '#58a6ff'} />
-              ))}
-            </Bar>
+            <Legend />
+            <Line type="monotone" dataKey="income" stroke="#48bb78" strokeWidth={2} dot={false} name="Income" />
+            <Line type="monotone" dataKey="expense" stroke="#fc8181" strokeWidth={2} dot={false} name="Expense" />
+            <Line type="monotone" dataKey="pnl" stroke="#63b3ed" strokeWidth={2} dot={false} name="P&L" />
+          </LineChart>
+        ) : (
+          <BarChart data={data} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#2d3748" />
+            <XAxis dataKey="date" stroke="#718096" tick={{ fontSize: 12 }} />
+            <YAxis stroke="#718096" tick={{ fontSize: 12 }} tickFormatter={(v) => `$${v}`} />
+            <Tooltip
+              contentStyle={{ background: '#1a202c', border: '1px solid #2d3748', borderRadius: 6 }}
+              labelStyle={{ color: '#e2e8f0' }}
+              formatter={(value) => [`$${value.toFixed(4)}`, undefined]}
+            />
+            <Legend />
+            <Bar dataKey="income" fill="#48bb78" name="Income" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="expense" fill="#fc8181" name="Expense" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="pnl" fill="#63b3ed" name="P&L" radius={[4, 4, 0, 0]} />
           </BarChart>
-        </ResponsiveContainer>
-      </div>
+        )}
+      </ResponsiveContainer>
     </div>
   );
-}
+};
+
+export default ProfitChart;
